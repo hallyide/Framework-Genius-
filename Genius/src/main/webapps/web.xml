@@ -7,7 +7,7 @@
     <display-name>name</display-name>
 <servlet>
     <servlet-name>FrontControllerServlet</servlet-name>
-    <servlet-class>FrontControllerServlet</servlet-class>
+    <servlet-class>servlet.FrontControllerServlet</servlet-class>
 </servlet>
 
 <servlet-mapping>
