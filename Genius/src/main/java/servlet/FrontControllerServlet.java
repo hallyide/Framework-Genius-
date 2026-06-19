@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -24,7 +25,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
 public class FrontControllerServlet extends HttpServlet {
+    
+    private List<String> listContr;
+    private Utilitaire util;
 
+    
     private Map<UrlMethod, RouteMapping> routes = new HashMap<>();
 
     // private WebApplicationContext springContext;
