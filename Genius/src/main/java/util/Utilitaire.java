@@ -1,10 +1,16 @@
 package util;
 import annotation.Controller;
+import annotation.UrlMapping;
 
 import java.util.List;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
+
 import java.util.Set;
 
 public class Utilitaire {
@@ -19,22 +25,57 @@ public class Utilitaire {
         return toutesLesClasses;
     }
 
-    public List<String> findController(String packageClasse){
-        List<String> liste = new ArrayList<>();
+    public List<Class<?>> findController(String packageClasse){
+        List<Class<?>> liste = new ArrayList<>();
 
         Set<Class<?>> toutesLesClasses = chercherClasse(packageClasse);
 
         for (Class<?> clazz : toutesLesClasses) {
             if( clazz.isAnnotationPresent(Controller.class)){
-
-                // Controller controllerAnnotation = clazz.getAnnotation(Controller.class);
-                // String valeur = controllerAnnotation.value();
-
-                // if (valeur.equals(annotationValue)){
-                    liste.add(clazz.getName());
-                // }
+                liste.add(clazz);
             } 
         }
         return liste;
     }
+
+    public Map<String, RouteMapping> findRoutes(List<Class<?>> controllerClasses) throws Exception {
+        Map<String, RouteMapping> result = new HashMap<>();
+
+        if (controllerClasses == null) {
+            return result;
+        }
+
+        for (Class<?> clazz : controllerClasses) {
+            for (Method method : clazz.getDeclaredMethods()) {
+                if (method.isAnnotationPresent(UrlMapping.class)) {
+                    UrlMapping annotation = method.getAnnotation(UrlMapping.class);
+                    if (result.containsKey(annotation.value())) {
+                        throw new Exception("La clé '" + annotation.value() + "' existe déjà.");
+                    }
+                    result.put(annotation.value(),new RouteMapping(clazz, method));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // public List<RouteMapping> findRoutes(List<Class<?>> controllerClasses) {
+    //     List<RouteMapping> result = new ArrayList<>();
+
+    //     if (controllerClasses == null) {
+    //         return result;
+    //     }
+
+    //     for (Class<?> clazz : controllerClasses) {
+    //         for (Method method : clazz.getDeclaredMethods()) {
+    //             if (method.isAnnotationPresent(UrlMapping.class)) {
+    //                 UrlMapping annotation = method.getAnnotation(UrlMapping.class);
+    //                 result.add(new RouteMapping(annotation.value(), clazz, method));
+    //             }
+    //         }
+    //     }
+
+    //     return result;
+    // }
 }
