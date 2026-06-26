@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+
 import Genius.util.*;
 
 import Genius.annotation.*;
@@ -24,11 +25,14 @@ import com.google.gson.Gson;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
+
 public class FrontControllerServlet extends HttpServlet {
     
-    private List<String> listContr;
-    private Utilitaire util;
+    private List<Class<?>> listContr;
+    private Map<String, RouteMapping> routes;
 
+    private Utilitaire util;
+    
     
     private Map<UrlMethod, RouteMapping> routes = new HashMap<>();
 
