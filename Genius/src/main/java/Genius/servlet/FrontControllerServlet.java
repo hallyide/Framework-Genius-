@@ -26,7 +26,6 @@ import java.lang.reflect.Parameter;
 
 public class FrontControllerServlet extends HttpServlet {
     
-    private List<Class<?>> listContr = new ArrayList<>();
     private Map<UrlMethod, RouteMapping> routes = new HashMap<>();
 
     private Utilitaire util;
