@@ -20,7 +20,6 @@ import Genius.util.Utilitaire;
 
 public class FrontControllerServlet extends HttpServlet {
     
-    private List<Class<?>> listContr = new ArrayList<>();
     private Map<UrlMethod, RouteMapping> routes = new HashMap<>();
 
     private Utilitaire util;
@@ -29,7 +28,7 @@ public class FrontControllerServlet extends HttpServlet {
         try {
             this.util = new Utilitaire();
 
-            util.findController("test",listContr,routes);
+            this.routes = (Map<UrlMethod, RouteMapping>) getServletContext().getAttribute("routes");
 
         } catch (Exception e) {
             e.printStackTrace();
