@@ -68,6 +68,21 @@ public class FrontControllerServlet extends HttpServlet {
         
         if (route != null) {
             out.println("<br>URL existant : " + urlCont + ", type : " + urlMethod1.getMethod() + " methode : "  + route.getControllerClass() + "->" + route.getMethod().getName());
+            try {
+
+                Object obj = route.getControllerClass().getDeclaredConstructor().newInstance();
+                Object result = route.getMethod().invoke(obj);
+
+                if (result != null) {
+                    out.println("<br>Resultat : " + result);
+                } else {
+                    out.println("<br>Resultat : null");
+                }
+            } catch(Exception e) {
+                e.printStackTrace();
+                throw new ServletException(e);
+
+            }
             lien = true;
         }
 
