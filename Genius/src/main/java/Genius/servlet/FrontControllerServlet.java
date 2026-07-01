@@ -1,4 +1,4 @@
-package servlet;
+package Genius.servlet;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 
@@ -7,18 +7,21 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
-
-import util.RouteMapping;
-import util.Utilitaire;
+import Genius.util.MethodeType;
+import Genius.util.RouteMapping;
+import Genius.util.UrlMethod;
+import Genius.util.Utilitaire;
 
 public class FrontControllerServlet extends HttpServlet {
     
-    private List<Class<?>> listContr;
-    private Map<String, RouteMapping> routes;
+    private List<Class<?>> listContr = new ArrayList<>();
+    private Map<UrlMethod, RouteMapping> routes = new HashMap<>();
 
     private Utilitaire util;
 
@@ -26,9 +29,7 @@ public class FrontControllerServlet extends HttpServlet {
         try {
             this.util = new Utilitaire();
 
-            this.listContr = util.findController("test");
-
-            this.routes = util.findRoutes(listContr);
+            util.findController("test",listContr,routes);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -51,44 +52,41 @@ public class FrontControllerServlet extends HttpServlet {
                         HttpServletResponse resp)
             throws ServletException, IOException {
 
+        
         PrintWriter out = resp.getWriter();
 
         out.println(url);
-
+        
         boolean lien = false;
+        String urlCont = url.substring(req.getContextPath().length());
 
+        UrlMethod urlMethod1 = new UrlMethod(MethodeType.valueOf(req.getMethod()), urlCont);
 
-        RouteMapping route = routes.get(url);
+        RouteMapping route = routes.get(urlMethod1);
 
+        out.println(urlCont);
+        
         if (route != null) {
-            out.println("<br>URL existant : " + url + " methode : "
-                    + route.getControllerClass() + "->" + route.getMethod().getName());
+            out.println("<br>URL existant : " + urlCont + ", type : " + urlMethod1.getMethod() + " methode : "  + route.getControllerClass() + "->" + route.getMethod().getName());
             lien = true;
         }
 
-        if (!lien) {
-            if (listContr == null || listContr.isEmpty()) {
-                out.println("<br>Aucun controleur trouve.");
-                return;
-            }
-
+        if(!lien) {
             out.println("Voila les liens existants : ");
-            for (Class<?> clazz : listContr) {
-                out.println("<br>Controller : " + clazz.getSimpleName());
 
-                boolean hasMappedMethod = false;
+            boolean hasMappedMethod = false;
+            for(UrlMethod urlMethod : routes.keySet()) {
+                RouteMapping routeM = routes.get(urlMethod);
+                hasMappedMethod = true;
 
-                for (Map.Entry<String, RouteMapping> entry : routes.entrySet()) {
-                    RouteMapping route1 = entry.getValue();
-                    out.println("<br>URL existant : " + entry.getKey()
-                            + " methode : " + route1.getMethod().getName());
-                }
-
-                if (!hasMappedMethod) {
-                    out.println("<br>Aucune methode annotee @UrlMapping");
-                }
+                out.println("<br>URL existant : " + urlMethod.getPath() + ", type : " + urlMethod1.getMethod() + " Classe : " +routeM.getControllerClass().toString()+", methode : "+ routeM.getMethod().getName());
             }
-        }
+
+            if (!hasMappedMethod) {
+                out.println("<br>Aucune methode annotee @UrlMapping");
+            }
+            
+        }        
     }
     
     @Override
