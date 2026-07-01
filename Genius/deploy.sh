@@ -5,7 +5,7 @@ WEB_DIR="src/main/webapp"
 BUILD_DIR="build"
 LIB_DIR="lib"
 SERVLET_API_JAR="$LIB_DIR/servlet-api.jar"
-APP_TEST_WEBAPPS="/home/idealy/Bureau/Servlet/WEBDyanamique/sprint0/test(framework)/lib"
+APP_TEST_WEBAPPS="/home/itu/Bureau/S4/WEBDyanamique/f/sprint0/test(framework)/lib"
 
 # Nettoyage et création du répertoire temporaire
 rm -rf $BUILD_DIR
@@ -26,20 +26,20 @@ jar -cvf $APP_NAME.jar -C classes .
 cd ..
 
 # Déploiement dans le lib de l'application de test
-mkdir -p $APP_TEST_WEBAPPS/WEB-INF/lib
+mkdir -p $APP_TEST_WEBAPPS
 
 # Copier le jar du framework
-cp -f $BUILD_DIR/$APP_NAME.jar $APP_TEST_WEBAPPS/WEB-INF/lib/
+cp -f $BUILD_DIR/$APP_NAME.jar $APP_TEST_WEBAPPS
 
 # Copier les dépendances séparément dans WEB-INF/lib (sauf servlet-api.jar fourni par Tomcat)
 for j in $LIB_DIR/*.jar; do
   if [ -f "$j" ]; then
     base=$(basename "$j")
     if [[ "$base" != "servlet-api.jar" && "$base" != "jakarta.servlet-api.jar" ]]; then
-      cp -f "$j" "$APP_TEST_WEBAPPS/WEB-INF/lib/"
+      cp -f "$j" "$APP_TEST_WEBAPPS"
     fi
   fi
 done
 
-echo "Framework déployé dans $APP_TEST_WEBAPPS/WEB-INF/lib :"
-ls -1 $APP_TEST_WEBAPPS/WEB-INF/lib || true
+echo "Framework déployé dans $APP_TEST_WEBAPPS :"
+ls -1 $APP_TEST_WEBAPPS || true

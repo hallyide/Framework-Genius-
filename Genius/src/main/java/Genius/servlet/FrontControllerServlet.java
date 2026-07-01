@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
-
 import Genius.util.*;
 
 import Genius.annotation.*;
@@ -25,11 +24,10 @@ import com.google.gson.Gson;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
-
 public class FrontControllerServlet extends HttpServlet {
     
-    private List<Class<?>> listContr;
-    private Map<String, RouteMapping> routes;
+    private List<Class<?>> listContr = new ArrayList<>();
+    private Map<UrlMethod, RouteMapping> routes = new HashMap<>();
 
     private Utilitaire util;
     
@@ -56,9 +54,9 @@ public class FrontControllerServlet extends HttpServlet {
 
         try {
             this.util = new Utilitaire();
-
             this.routes = (Map<UrlMethod, RouteMapping>) getServletContext().getAttribute("routes");
             // springContext = (WebApplicationContext)getServletContext().getAttribute("springContext");
+
         } catch (Exception e) {
             e.printStackTrace();
             throw new ServletException(e);
@@ -81,13 +79,17 @@ public class FrontControllerServlet extends HttpServlet {
         PrintWriter out = resp.getWriter();
 
         boolean lien = false;
+        String urlCont = url.substring(req.getContextPath().length());
 
+        
         String urlCont = url.substring(req.getContextPath().length());
 
         UrlMethod urlMethod1 = new UrlMethod(MethodeType.valueOf(req.getMethod()), urlCont);
 
         RouteMapping route = routes.get(urlMethod1);
 
+        out.println(urlCont);
+        
         if (route != null) {
             try {
                 Object obj;
