@@ -141,6 +141,7 @@ public class FrontControllerServlet extends HttpServlet {
                          HttpServletResponse resp)
             throws ServletException, IOException {
 
+        resp.setContentType("text/html;charset=UTF-8");
         processRequest(req, resp);
     }
 
