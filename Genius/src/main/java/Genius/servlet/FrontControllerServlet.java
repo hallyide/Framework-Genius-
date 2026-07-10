@@ -86,8 +86,7 @@ public class FrontControllerServlet extends HttpServlet {
         UrlMethod urlMethod1 = new UrlMethod(MethodeType.valueOf(req.getMethod()), urlCont);
 
         RouteMapping route = routes.get(urlMethod1);
-
-        out.println(urlCont);
+        
         
         if (route != null) {
             try {
@@ -179,6 +178,7 @@ public class FrontControllerServlet extends HttpServlet {
 
             }
         }
+        
 
         // if(!lien) {
         //     out.println("Voila les liens existants : ");
