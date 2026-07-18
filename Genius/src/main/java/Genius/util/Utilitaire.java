@@ -48,4 +48,14 @@ public class Utilitaire {
             } 
         }
     }
+
+    public static boolean haveParameter(Method method, Class<?> param) {
+        for(Class<?> c : method.getParameterTypes()) {
+
+            if(c.equals(param))
+                return true;
+        }
+
+        return false;
+    }
 }
