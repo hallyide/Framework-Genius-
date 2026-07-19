@@ -15,10 +15,14 @@ import java.util.Vector;
 
 import Genius.util.*;
 
+import org.springframework.web.context.WebApplicationContext;
+
 public class FrontControllerServlet extends HttpServlet {
     
     private Map<UrlMethod, RouteMapping> routes = new HashMap<>();
-
+    
+    private WebApplicationContext springContext;
+    
     private Utilitaire util;
 
     private String prefix;
@@ -35,8 +39,8 @@ public class FrontControllerServlet extends HttpServlet {
             this.util = new Utilitaire();
 
             this.routes = (Map<UrlMethod, RouteMapping>) getServletContext().getAttribute("routes");
-
-        } catch (Exception e) {
+            springContext = (WebApplicationContext)getServletContext().getAttribute("springContext");
+        } catch (Exception e) { 
             e.printStackTrace();
             throw new ServletException(e);
         }
@@ -69,13 +73,37 @@ public class FrontControllerServlet extends HttpServlet {
         
         if (route != null) {
             try {
+                Object obj;
 
-                Object obj = route.getControllerClass().getDeclaredConstructor().newInstance();
-                
+                if(springContext != null) {
+
+                    obj = springContext.getBean(route.getControllerClass());
+
+                }
+                else{
+
+                    obj = route.getControllerClass()
+                            .getDeclaredConstructor()
+                            .newInstance();
+                }
                 Class<?> returnType = route.getMethod().getReturnType();
 
                 if (returnType.equals(ModelAndView.class)) {
-                    Object result = route.getMethod().invoke(obj);
+                    Object result;
+
+                    if(this.util.haveParameter(route.getMethod(), WebApplicationContext.class)) {
+
+                        if(springContext == null) {
+                            throw new Exception("SpringContext introuvable");
+                        }
+
+                        result = route.getMethod().invoke(obj, springContext);
+
+                    } else {
+
+                        result = route.getMethod().invoke(obj);
+
+                    }
 
                     ModelAndView m = (ModelAndView) result;
                     Map<String, Object> att = m.getAttribute();
@@ -89,16 +117,25 @@ public class FrontControllerServlet extends HttpServlet {
                 } else if (returnType.equals(String.class)) {
                     Model model = new Model();
                     Object result;
-                    
-                    int paramCount = route.getMethod().getParameterCount();
 
-                    Class<?> paramType = paramCount > 0 ? route.getMethod().getParameterTypes()[0] : null;
+                    List<Object> args = new ArrayList<>();
 
-                    if(paramCount > 0 && paramType.equals(Model.class)) {
-                        result = route.getMethod().invoke(obj, model);
-                    } else {
-                        result = route.getMethod().invoke(obj);
+                    for(Class<?> c : route.getMethod().getParameterTypes()){
+
+                        if(c.equals(Model.class))
+                            args.add(model);
+
+                        else if(c.equals(WebApplicationContext.class)){
+
+                            if(springContext == null)
+                                throw new Exception("SpringContext introuvable");
+
+                            args.add(springContext);
+                        }
                     }
+
+                    result = route.getMethod().invoke(obj, args.toArray());
+                    
 
                     Map<String, Object> att = model.getAttribute();
                     if(att != null) {

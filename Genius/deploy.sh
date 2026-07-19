@@ -5,7 +5,7 @@ WEB_DIR="src/main/webapp"
 BUILD_DIR="build"
 LIB_DIR="lib"
 SERVLET_API_JAR="$LIB_DIR/servlet-api.jar"
-APP_TEST_WEBAPPS="/home/itu/Bureau/S4/WEBDyanamique/f/sprint0/test(framework)/lib"
+APP_TEST_WEBAPPS="/home/idealy/Bureau/Servlet/WEBDyanamique/sprint0/test/lib"
 
 # Nettoyage et création du répertoire temporaire
 rm -rf $BUILD_DIR

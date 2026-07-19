@@ -48,4 +48,24 @@ public class Utilitaire {
             } 
         }
     }
+
+    public int haveNumParameter(Method method, Class<?> param) {
+        Class<?>[] cl = method.getParameterTypes();
+        for (int i = 0; i < cl.length; i++) {
+            if (cl[i].equals(param)){
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public boolean haveParameter(Method method, Class<?> param) {
+        for(Class<?> c : method.getParameterTypes()) {
+
+            if(c.equals(param))
+                return true;
+        }
+
+        return false;
+    }
 }
