@@ -89,7 +89,21 @@ public class FrontControllerServlet extends HttpServlet {
                 Class<?> returnType = route.getMethod().getReturnType();
 
                 if (returnType.equals(ModelAndView.class)) {
-                    Object result = route.getMethod().invoke(obj);
+                    Object result;
+
+                    if(this.util.haveParameter(route.getMethod(), WebApplicationContext.class)) {
+
+                        if(springContext == null) {
+                            throw new Exception("SpringContext introuvable");
+                        }
+
+                        result = route.getMethod().invoke(obj, springContext);
+
+                    } else {
+
+                        result = route.getMethod().invoke(obj);
+
+                    }
 
                     ModelAndView m = (ModelAndView) result;
                     Map<String, Object> att = m.getAttribute();
@@ -104,29 +118,24 @@ public class FrontControllerServlet extends HttpServlet {
                     Model model = new Model();
                     Object result;
 
-                    if(Util.haveParameter(route.getMethod(),
-                            WebApplicationContext.class)){
+                    List<Object> args = new ArrayList<>();
 
-                        result = route.getMethod()
-                                .invoke(obj, springContext);
+                    for(Class<?> c : route.getMethod().getParameterTypes()){
 
+                        if(c.equals(Model.class))
+                            args.add(model);
+
+                        else if(c.equals(WebApplicationContext.class)){
+
+                            if(springContext == null)
+                                throw new Exception("SpringContext introuvable");
+
+                            args.add(springContext);
+                        }
                     }
-                    else{
 
-                        result = route.getMethod()
-                                .invoke(obj);
-
-                    }
+                    result = route.getMethod().invoke(obj, args.toArray());
                     
-                    int paramCount = route.getMethod().getParameterCount();
-
-                    Class<?> paramType = paramCount > 0 ? route.getMethod().getParameterTypes()[0] : null;
-
-                    // if(paramCount > 0 && paramType.equals(Model.class)) {
-                    //     result = route.getMethod().invoke(obj, model);
-                    // } else {
-                    //     result = route.getMethod().invoke(obj);
-                    // }
 
                     Map<String, Object> att = model.getAttribute();
                     if(att != null) {
