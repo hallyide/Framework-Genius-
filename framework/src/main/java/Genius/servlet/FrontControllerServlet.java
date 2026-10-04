@@ -99,7 +99,51 @@ public class FrontControllerServlet extends HttpServlet {
 
                     resp.setContentType("application/json;charset=UTF-8");
 
-                    result = route.getMethod().invoke(obj);
+                    Map<String, String[]> requestParams = req.getParameterMap();
+
+                    if (requestParams == null || requestParams.isEmpty()) {
+                        result = route.getMethod().invoke(obj);
+
+                    } else {
+                        Method mm = route.getMethod();
+
+                        Parameter[] params = mm.getParameters();
+                        Object[] args = new Object[params.length];
+
+                        for (int i = 0; i < params.length; i++) {
+                            Parameter pppppppp = params[i];
+                            String paramName = pppppppp.getName();
+                            Class<?> paramType = pppppppp.getType();
+
+                            String value = req.getParameter(paramName);
+
+                            if (value == null || value.isEmpty()) {
+                                
+                                if (paramType.isPrimitive()) {
+                                    throw new IllegalArgumentException(
+                                            "Paramètre obligatoire manquant : " + paramName
+                                    );
+                                }
+                                
+                                args[i] = null;
+                            } else {
+                                if (paramType == String.class) {
+                                    args[i] = value;
+                                } else if (paramType == int.class || paramType == Integer.class) {
+                                    args[i] = Integer.parseInt(value);
+                                } else if (paramType == long.class || paramType == Long.class) {
+                                    args[i] = Long.parseLong(value);
+                                } else if (paramType == double.class || paramType == Double.class) {
+                                    args[i] = Double.parseDouble(value);
+                                } else if (paramType == boolean.class || paramType == Boolean.class) {
+                                    args[i] = Boolean.parseBoolean(value);
+                                } else {
+                                    args[i] = value;
+                                }
+                            }
+                        }
+                        result = mm.invoke(obj, args);
+                    }
 
                     PrintWriter r = resp.getWriter();
                     if (returnType.equals(String.class)) {
