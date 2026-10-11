@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,7 +16,6 @@ import java.util.Map;
 import java.util.Vector;
 
 import Genius.util.*;
-
 import Genius.annotation.*;
 
 // import org.springframework.web.context.WebApplicationContext;
@@ -47,7 +47,6 @@ public class FrontControllerServlet extends HttpServlet {
 
         try {
             this.util = new Utilitaire();
-
             this.routes = (Map<UrlMethod, RouteMapping>) getServletContext().getAttribute("routes");
             // springContext = (WebApplicationContext)getServletContext().getAttribute("springContext");
         } catch (Exception e) {
@@ -72,7 +71,9 @@ public class FrontControllerServlet extends HttpServlet {
         PrintWriter out = resp.getWriter();
 
         boolean lien = false;
+        String urlCont = url.substring(req.getContextPath().length());
 
+        
         String urlCont = url.substring(req.getContextPath().length());
 
         UrlMethod urlMethod1 = new UrlMethod(MethodeType.valueOf(req.getMethod()), urlCont);
