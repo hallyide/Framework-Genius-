@@ -11,13 +11,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.web.context.WebApplicationContext;
+// import org.springframework.web.context.WebApplicationContext;
 
 @WebListener
 public class FrontControllerListener implements ServletContextListener {
 
-    public static final String SPRING_ROOT =
-            WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE;
+    // public static final String SPRING_ROOT =
+    //         WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE;
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
@@ -35,16 +35,16 @@ public class FrontControllerListener implements ServletContextListener {
 
             context.setAttribute("routes", routes);
 
-            WebApplicationContext springContext = (WebApplicationContext)context.getAttribute(SPRING_ROOT);
+            // WebApplicationContext springContext = (WebApplicationContext)context.getAttribute(SPRING_ROOT);
 
-            if (springContext == null) {
-                throw new RuntimeException(
-                    "Aucun WebApplicationContext trouvé. " +
-                    "Vérifiez la configuration Spring " +
-                    "(ContextLoaderListener et contextConfigLocation).");
-            }
+            // if (springContext == null) {
+            //     throw new RuntimeException(
+            //         "Aucun WebApplicationContext trouvé. " +
+            //         "Vérifiez la configuration Spring " +
+            //         "(ContextLoaderListener et contextConfigLocation).");
+            // }
 
-            context.setAttribute("springContext", springContext);
+            // context.setAttribute("springContext", springContext);
 
         } catch (Exception e) {
 

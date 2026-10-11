@@ -5,7 +5,7 @@ WEB_DIR="src/main/webapp"
 BUILD_DIR="build"
 LIB_DIR="lib"
 SERVLET_API_JAR="$LIB_DIR/servlet-api.jar"
-APP_TEST_WEBAPPS="/home/idealy/Bureau/Servlet/WEBDyanamique/sprint0/test/lib"
+APP_TEST_WEBAPPS="/home/idealy/Bureau/S5/newewwwww/sprint6(3)/test(framework)/lib"
 
 # Nettoyage et création du répertoire temporaire
 rm -rf $BUILD_DIR
@@ -14,7 +14,7 @@ mkdir -p $BUILD_DIR/lib
 
 # Compilation des fichiers Java avec le JAR des Servlets
 find $SRC_DIR -name "*.java" > sources.txt
-javac -cp ".:lib/*" -d $BUILD_DIR/classes @sources.txt 
+javac -parameters -cp ".:lib/*" -d $BUILD_DIR/classes @sources.txt 
 rm sources.txt
 
 # Copier les jars de dépendances vers build/lib (reste inchangé)
