@@ -12,6 +12,7 @@ import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 
 import java.util.Set;
+import java.lang.reflect.Parameter;
 
 public class Utilitaire {
     public Utilitaire(){};
@@ -68,4 +69,50 @@ public class Utilitaire {
 
         return false;
     }
+
+    // public void arguments(Object[] args, Parameter[] params) {
+    //     for (int i = 0; i < params.length; i++) {
+    //         Parameter pppppppp = params[i];
+    //         String paramName = pppppppp.getName();
+    //         Class<?> paramType = pppppppp.getType();
+
+    //         String value = req.getParameter(paramName);
+
+    //         if (value == null || value.isEmpty()) {
+                
+
+    //             if (paramType.isPrimitive()) {
+    //                 throw new IllegalArgumentException(
+    //                         "Paramètre obligatoire manquant : " + paramName
+    //                 );
+    //             }
+                    
+    //             if (paramType.equals(Model.class)) {
+
+    //                 args[i] = model;
+    //             // } 
+    //             // else if(paramType.equals(WebApplicationContext.class)){
+    //             //     if(springContext.equals(null))
+    //         //         throw new Exception("SpringContext introuvable");
+    //             //     args[i] = springContext;
+    //             } else {
+    //                 args[i] = null;
+    //             }
+    //         } else {
+    //             if (paramType.equals(String.class)) {
+    //                 args[i] = value;
+    //             } else if (paramType.equals(int.class) || paramType.equals(Integer.class)) {
+    //                 args[i] = Integer.parseInt(value);
+    //             } else if (paramType.equals(long.class) || paramType.equals(Long.class)) {
+    //                 args[i] = Long.parseLong(value);
+    //             } else if (paramType.equals(double.class) || paramType.equals(Double.class)) {
+    //                 args[i] = Double.parseDouble(value);
+    //             } else if (paramType.equals(boolean.class) || paramType.equals(Boolean.class)) {
+    //                 args[i] = Boolean.parseBoolean(value);
+    //             } else {
+    //                 args[i] = value;
+    //             }
+    //         }
+    //     }
+    // }
 }

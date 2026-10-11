@@ -24,12 +24,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
 public class FrontControllerServlet extends HttpServlet {
-    
-    private Map<UrlMethod, RouteMapping> routes = new HashMap<>();
 
-    private Utilitaire util;
-    
-    
     private Map<UrlMethod, RouteMapping> routes = new HashMap<>();
 
     // private WebApplicationContext springContext;
@@ -54,7 +49,6 @@ public class FrontControllerServlet extends HttpServlet {
             this.util = new Utilitaire();
             this.routes = (Map<UrlMethod, RouteMapping>) getServletContext().getAttribute("routes");
             // springContext = (WebApplicationContext)getServletContext().getAttribute("springContext");
-
         } catch (Exception e) {
             e.printStackTrace();
             throw new ServletException(e);
@@ -85,8 +79,9 @@ public class FrontControllerServlet extends HttpServlet {
         UrlMethod urlMethod1 = new UrlMethod(MethodeType.valueOf(req.getMethod()), urlCont);
 
         RouteMapping route = routes.get(urlMethod1);
-        
-        
+
+        Map<String, String[]> requestParams = req.getParameterMap();
+
         if (route != null) {
             try {
                 Object obj;
@@ -101,13 +96,98 @@ public class FrontControllerServlet extends HttpServlet {
                 // }
                 Class<?> returnType = route.getMethod().getReturnType();
 
+                Model model = new Model();
+
+                Method mm = route.getMethod();
+
+                Parameter[] params = mm.getParameters();
+                Object[] args = new Object[params.length];
+
+
+
+                // util.arguments(args,params);
+                // for (int i = 0; i < params.length; i++) {
+                //     Parameter pppppppp = params[i];
+                //     String paramName = pppppppp.getName();
+                //     Class<?> paramType = pppppppp.getType();
+
+                //     String value = req.getParameter(paramName);
+
+                //     if (value == null || value.isEmpty()) {
+                        
+
+                //         if (paramType.isPrimitive()) {
+                //             throw new IllegalArgumentException(
+                //                     "Paramètre obligatoire manquant : " + paramName
+                //             );
+                //         }
+                          
+                //         if (paramType.equals(Model.class)) {
+
+                //             args[i] = model;
+                //         // } 
+                //         // else if(paramType.equals(WebApplicationContext.class)){
+                //         //     if(springContext.equals(null))
+                //     //         throw new Exception("SpringContext introuvable");
+                //         //     args[i] = springContext;
+                //         } else {
+                //             args[i] = null;
+                //         }
+                //     } else {
+                //         if (paramType.equals(String.class)) {
+                //             args[i] = value;
+                //         } else if (paramType.equals(int.class) || paramType.equals(Integer.class)) {
+                //             args[i] = Integer.parseInt(value);
+                //         } else if (paramType.equals(long.class) || paramType.equals(Long.class)) {
+                //             args[i] = Long.parseLong(value);
+                //         } else if (paramType.equals(double.class) || paramType.equals(Double.class)) {
+                //             args[i] = Double.parseDouble(value);
+                //         } else if (paramType.equals(boolean.class) || paramType.equals(Boolean.class)) {
+                //             args[i] = Boolean.parseBoolean(value);
+                //         } else {
+                //             args[i] = value;
+                //         }
+                //     }
+                // }
+
+                for (int i = 0; i < params.length; i++) {
+                    Parameter param = params[i];
+                    String paramName = param.getName();
+                    Class<?> paramType = param.getType();
+
+                    if (paramType.equals(Model.class)) {
+                        args[i] = model;
+                        continue;
+                    }
+                
+                    if (paramType.isArray() || !ParamBinder.isSimple(paramType)) {
+                        args[i] = ParamBinder.bind(req, paramName, paramType, true);
+                        continue;
+                    }
+
+                    String value = req.getParameter(paramName);
+
+                    if (value == null || value.isEmpty()) {
+                        if (paramType.isPrimitive()) {
+                            throw new IllegalArgumentException("Paramètre obligatoire manquant : " + paramName);
+                        }
+                        args[i] = null;
+                    } else {
+                        args[i] = ParamBinder.convert(value, paramType);
+                    }
+                }
 
                 if (route.getMethod().isAnnotationPresent(ApiREST.class)) {
                     Object result = new Object();
 
                     resp.setContentType("application/json;charset=UTF-8");
 
-                    result = route.getMethod().invoke(obj);
+                    if (requestParams == null || requestParams.isEmpty()) {
+                        result = route.getMethod().invoke(obj);
+
+                    } else {
+                        result = mm.invoke(obj, args);
+                    }
 
                     PrintWriter r = resp.getWriter();
                     if (returnType.equals(String.class)) {
@@ -127,7 +207,7 @@ public class FrontControllerServlet extends HttpServlet {
                     //     }
                     //     result = route.getMethod().invoke(obj, springContext);
                     // } else {
-                    result = route.getMethod().invoke(obj);
+                    result = route.getMethod().invoke(obj,args);
 
                     // }
                     ModelAndView m = (ModelAndView) result;
@@ -140,25 +220,9 @@ public class FrontControllerServlet extends HttpServlet {
                     req.getRequestDispatcher(lien1).forward(req, resp);
 
                 } else if (returnType.equals(String.class) && !route.getMethod().isAnnotationPresent(ApiREST.class)) {
-                    Model model = new Model();
                     Object result;
-
-                    List<Object> args = new ArrayList<>();
-
-                    for (Class<?> c : route.getMethod().getParameterTypes()) {
-
-                        if (c.equals(Model.class)) {
-                            args.add(model);
-                        }
-
-                        // else if(c.equals(WebApplicationContext.class)){
-                        //     if(springContext == null)
-                        //         throw new Exception("SpringContext introuvable");
-                        //     args.add(springContext);
-                        // }
-                    }
-
-                    result = route.getMethod().invoke(obj, args.toArray());
+                    
+                    result = route.getMethod().invoke(obj, args);
 
                     Map<String, Object> att = model.getAttribute();
                     if (att != null) {
@@ -169,6 +233,10 @@ public class FrontControllerServlet extends HttpServlet {
 
                     String lien1 = prefix + (String) result + suffix;
                     req.getRequestDispatcher(lien1).forward(req, resp);
+                } else if (!(requestParams == null) || !requestParams.isEmpty()) {
+                    Object result;
+                    result = mm.invoke(obj, args);
+
                 }
 
             } catch (Exception e) {
@@ -177,20 +245,6 @@ public class FrontControllerServlet extends HttpServlet {
 
             }
         }
-        
-
-        // if(!lien) {
-        //     out.println("Voila les liens existants : ");
-        //     boolean hasMappedMethod = false;
-        //     for(UrlMethod urlMethod : routes.keySet()) {
-        //         RouteMapping routeM = routes.get(urlMethod);
-        //         hasMappedMethod = true;
-        //         out.println("<br>URL existant : " + urlMethod.getPath() + ", type : " + urlMethod.getMethod() + " Classe : " +routeM.getControllerClass().toString()+", methode : "+ routeM.getMethod().getName());
-        //     }
-        //     if (!hasMappedMethod) {
-        //         out.println("<br>Aucune methode annotee @UrlMapping");
-        //     }
-        // }
     }
 
     @Override
