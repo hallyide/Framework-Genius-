@@ -1,141 +1,296 @@
 package Genius.util;
 
-import jakarta.servlet.http.HttpServletRequest; // ou javax.servlet selon ta version
-import java.lang.reflect.Array;
+import jakarta.servlet.http.HttpServletRequest;
+
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.time.LocalDate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import jakarta.servlet.http.Part;
+import Genius.util.Fichier;
+
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 public class ParamBinder {
-
-    /** Types qu'on lit directement depuis un seul paramètre */
-    public static boolean isSimple(Class<?> t) {
-        return t.isPrimitive()
-                || t.equals(String.class)
-                || Number.class.isAssignableFrom(t)
-                || t.equals(Boolean.class)
-                || t.equals(Character.class)
-                || t.equals(LocalDate.class);
-    }
-
-    /** Point d'entrée : objet, tableau ou type simple */
-    public static Object bind(HttpServletRequest req, String name, Class<?> type, boolean allowNoPrefix)
-            throws Exception {
-        if (type.isArray()) {
-            return bindArray(req, name, type.getComponentType());
-        }
-        if (isSimple(type)) {
-            return convert(req.getParameter(name), type);
-        }
-        return bindObject(req, name, type, allowNoPrefix);
-    }
-
-    /** Remplit un objet à partir des paramètres de la requête */
-    private static Object bindObject(HttpServletRequest req, String prefix, Class<?> type, boolean allowNoPrefix)
+    public <T> T bind(Class<T> classe, HttpServletRequest req)
             throws Exception {
 
-        Object instance = type.getDeclaredConstructor().newInstance();
+        return bindObject(classe, "", req);
+    }
 
-        for (Field f : type.getDeclaredFields()) {
-            if (Modifier.isStatic(f.getModifiers())) continue;
+    /**
+     *
+     * @param classe
+     * @param prefixe
+     * @param req
+     */
+    private <T> T bindObject(
+            Class<T> classe,
+            String prefixe,
+            HttpServletRequest req
+    ) throws Exception {
 
-            String fieldName = f.getName();
-            Class<?> fieldType = f.getType();
-            String key = prefix + "." + fieldName;
+        // Création de l'objet
+        Constructor<T> constructeur = classe.getDeclaredConstructor();
+        constructeur.setAccessible(true);
 
-            Object value = null;
-            boolean found = false;
+        T objet = constructeur.newInstance();
 
-            if (fieldType.isArray()) {
-                String k = hasParam(req, key) ? key : (allowNoPrefix && hasParam(req, fieldName) ? fieldName : null);
-                if (k != null) { value = bindArray(req, k, fieldType.getComponentType()); found = true; }
+        // Parcours des attributs de la classe
+        Field[] fields = classe.getDeclaredFields();
 
-            } else if (isSimple(fieldType)) {
-                String raw = req.getParameter(key);
-                if (raw == null && allowNoPrefix) raw = req.getParameter(fieldName);
-                if (raw != null) { value = convert(raw, fieldType); found = true; }
+        for (Field field : fields) {
 
-            } else { // objet imbriqué
-                if (hasParam(req, key)) {
-                    value = bindObject(req, key, fieldType, false);
-                    found = true;
+            // Ignorer les attributs static
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+
+            String nomChamp = field.getName();
+
+            // Construire le nom du paramètre HTTP
+            String nomParametre;
+
+            if (prefixe == null || prefixe.isEmpty()) {
+                nomParametre = nomChamp;
+            } else {
+                nomParametre = prefixe + "." + nomChamp;
+            }
+
+            Class<?> typeChamp = field.getType();
+
+            // Récupérer la valeur envoyée par le formulaire
+            String valeur = req.getParameter(nomParametre);
+
+            // Si une valeur simple existe, l'affecter
+            if (valeur != null) {
+
+                // Une valeur vide n'est pas convertie en nombre
+                if (valeur.isEmpty()) {
+                    continue;
+                }
+
+                Object valeurConvertie = convertir(valeur, typeChamp);
+
+                affecterAttribut(objet, field, valeurConvertie);
+
+            } else if (estObjetComplexe(typeChamp)) {
+
+                /*
+                 * Aucun paramètre direct :
+                 * rechercher récursivement les attributs imbriqués.
+                 *
+                 * Exemple :
+                 * genre.libelle
+                 * genre.categorie.nom
+                 */
+                if (contientParametre(prefixe, nomChamp, req)) {
+
+                    Object sousObjet = bindObject(
+                            typeChamp,
+                            nomParametre,
+                            req
+                    );
+
+                    affecterAttribut(objet, field, sousObjet);
                 }
             }
-
-            if (found) setValue(instance, f, value);
         }
-        return instance;
+
+        return objet;
     }
 
-    /** Tableaux : String[], int[], Personne[] ... */
-    private static Object bindArray(HttpServletRequest req, String name, Class<?> comp) throws Exception {
+    /**
+     * Vérifie si la requête contient au moins un paramètre
+     * correspondant à un attribut imbriqué.
+     *
+     * Exemple :
+     * genre.libelle
+     * genre.categorie.nom
+     */
+    private boolean contientParametre(
+            String prefixe,
+            String nomChamp,
+            HttpServletRequest req
+    ) {
 
-        // tableau de types simples : ?tags=a&tags=b  (ou name="tags[]")
-        if (isSimple(comp)) {
-            String[] values = req.getParameterValues(name);
-            if (values == null) values = req.getParameterValues(name + "[]");
-            if (values == null) values = new String[0];
+        String debut;
 
-            Object arr = Array.newInstance(comp, values.length);
-            for (int i = 0; i < values.length; i++) {
-                Array.set(arr, i, convert(values[i], comp));
+        if (prefixe == null || prefixe.isEmpty()) {
+            debut = nomChamp + ".";
+        } else {
+            debut = prefixe + "." + nomChamp + ".";
+        }
+
+        for (String nom : req.getParameterMap().keySet()) {
+            if (nom.startsWith(debut)) {
+                return true;
             }
-            return arr;
         }
 
-        // tableau d'objets : personnes[0].nom, personnes[1].nom ...
-        Pattern p = Pattern.compile(Pattern.quote(name) + "\\[(\\d+)\\].*");
-        int max = -1;
-        for (String k : req.getParameterMap().keySet()) {
-            Matcher m = p.matcher(k);
-            if (m.matches()) max = Math.max(max, Integer.parseInt(m.group(1)));
-        }
-
-        Object arr = Array.newInstance(comp, max + 1);
-        for (int i = 0; i <= max; i++) {
-            Array.set(arr, i, bindObject(req, name + "[" + i + "]", comp, false));
-        }
-        return arr;
-    }
-
-    private static boolean hasParam(HttpServletRequest req, String key) {
-        for (String k : req.getParameterMap().keySet()) {
-            if (k.equals(key) || k.startsWith(key + ".") || k.startsWith(key + "[")) return true;
-        }
         return false;
     }
 
-    private static void setValue(Object obj, Field f, Object value) throws Exception {
-        String setter = "set" + Character.toUpperCase(f.getName().charAt(0)) + f.getName().substring(1);
+    /**
+     * Affecte un attribut à un objet.
+     *
+     * Privilégie le setter public.
+     * Si aucun setter n'existe, utilise directement le champ.
+     */
+    private void affecterAttribut(
+            Object objet,
+            Field field,
+            Object valeur
+    ) throws Exception {
+
+        String nomChamp = field.getName();
+
+        String nomSetter =
+                "set"
+                + Character.toUpperCase(nomChamp.charAt(0))
+                + nomChamp.substring(1);
+
         try {
-            Method m = obj.getClass().getMethod(setter, f.getType());
-            m.invoke(obj, value);
+
+            Method setter = objet.getClass().getMethod(
+                    nomSetter,
+                    field.getType()
+            );
+
+            setter.invoke(objet, valeur);
+
         } catch (NoSuchMethodException e) {
-            f.setAccessible(true);
-            f.set(obj, value);
+
+            // Aucun setter : affectation directe du champ
+            field.setAccessible(true);
+            field.set(objet, valeur);
         }
     }
 
-    /** Conversion String -> type cible */
-    public static Object convert(String value, Class<?> type) {
-        if (value == null || value.isEmpty()) {
-            if (type.isPrimitive()) { // valeur par défaut : 0, false...
-                return Array.get(Array.newInstance(type, 1), 0);
+    /**
+     * Détermine si un type représente un objet complexe.
+     */
+    private boolean estObjetComplexe(Class<?> type) {
+
+        return !type.isPrimitive()
+                && type != String.class
+                && !Number.class.isAssignableFrom(type)
+                && type != Boolean.class
+                && type != Character.class
+                && !type.isEnum()
+                && !type.getName().startsWith("java.");
+    }
+
+    /**
+     * Convertit une valeur HTTP vers le type Java attendu.
+     */
+    private Object convertir(String valeur, Class<?> type) {
+
+        if (type == String.class) {
+            return valeur;
+        }
+
+        if (type == int.class || type == Integer.class) {
+            return Integer.parseInt(valeur);
+        }
+
+        if (type == long.class || type == Long.class) {
+            return Long.parseLong(valeur);
+        }
+
+        if (type == double.class || type == Double.class) {
+            return Double.parseDouble(valeur);
+        }
+
+        if (type == float.class || type == Float.class) {
+            return Float.parseFloat(valeur);
+        }
+
+        if (type == short.class || type == Short.class) {
+            return Short.parseShort(valeur);
+        }
+
+        if (type == byte.class || type == Byte.class) {
+            return Byte.parseByte(valeur);
+        }
+
+        if (type == boolean.class || type == Boolean.class) {
+            if (!valeur.equalsIgnoreCase("true")
+                    && !valeur.equalsIgnoreCase("false")) {
+                throw new IllegalArgumentException(
+                        "Valeur booléenne invalide : " + valeur
+                );
             }
+
+            return Boolean.parseBoolean(valeur);
+        }
+
+        if (type == char.class || type == Character.class) {
+            if (valeur.length() != 1) {
+                throw new IllegalArgumentException(
+                        "Caractère invalide : " + valeur
+                );
+            }
+
+            return valeur.charAt(0);
+        }
+
+        if (type.isEnum()) {
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            Object resultat = Enum.valueOf(
+                    (Class<? extends Enum>) type,
+                    valeur
+            );
+
+            return resultat;
+        }
+
+        throw new IllegalArgumentException(
+                "Type non pris en charge : " + type.getName()
+        );
+    }
+
+    public Fichier construireFichier(
+            HttpServletRequest req,
+            String nomParametre
+    ) throws Exception {
+
+        // Récupérer le fichier envoyé par le formulaire
+        Part part = req.getPart(nomParametre);
+
+        if (part == null || part.getSize() == 0) {
             return null;
         }
-        if (type.equals(String.class)) return value;
-        if (type.equals(int.class) || type.equals(Integer.class)) return Integer.parseInt(value);
-        if (type.equals(long.class) || type.equals(Long.class)) return Long.parseLong(value);
-        if (type.equals(short.class) || type.equals(Short.class)) return Short.parseShort(value);
-        if (type.equals(float.class) || type.equals(Float.class)) return Float.parseFloat(value.replace(',', '.'));
-        if (type.equals(double.class) || type.equals(Double.class)) return Double.parseDouble(value.replace(',', '.'));
-        if (type.equals(boolean.class) || type.equals(Boolean.class)) return Boolean.parseBoolean(value);
-        if (type.equals(char.class) || type.equals(Character.class)) return value.charAt(0);
-        if (type.equals(LocalDate.class)) return LocalDate.parse(value);
-        return value;
+
+        // Récupérer le nom du fichier
+        String nomFichier = part.getSubmittedFileName();
+
+        // Récupérer le type MIME
+        String typeFichier = part.getContentType();
+
+        // Lire les données binaires du fichier
+        byte[] contenu;
+
+        try (InputStream input = part.getInputStream();
+            ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[8192];
+            int longueur;
+
+            while ((longueur = input.read(buffer)) != -1) {
+                output.write(buffer, 0, longueur);
+            }
+
+            contenu = output.toByteArray();
+        }
+
+        // Construire l'objet Fichier
+        return new Fichier(
+                contenu,
+                nomFichier,
+                typeFichier
+        );
     }
 }

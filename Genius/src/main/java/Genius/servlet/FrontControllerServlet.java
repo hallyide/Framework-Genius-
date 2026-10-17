@@ -33,6 +33,7 @@ public class FrontControllerServlet extends HttpServlet {
     private String prefix;
     private String suffix;
     private Gson gson = new Gson();
+    private ParamBinder binder = new ParamBinder();
 
     public void init() throws ServletException {
         this.prefix = getInitParameter("prefix");
@@ -103,77 +104,72 @@ public class FrontControllerServlet extends HttpServlet {
                 Parameter[] params = mm.getParameters();
                 Object[] args = new Object[params.length];
 
-
-
-                // util.arguments(args,params);
-                // for (int i = 0; i < params.length; i++) {
-                //     Parameter pppppppp = params[i];
-                //     String paramName = pppppppp.getName();
-                //     Class<?> paramType = pppppppp.getType();
-
-                //     String value = req.getParameter(paramName);
-
-                //     if (value == null || value.isEmpty()) {
-                        
-
-                //         if (paramType.isPrimitive()) {
-                //             throw new IllegalArgumentException(
-                //                     "Paramètre obligatoire manquant : " + paramName
-                //             );
-                //         }
-                          
-                //         if (paramType.equals(Model.class)) {
-
-                //             args[i] = model;
-                //         // } 
-                //         // else if(paramType.equals(WebApplicationContext.class)){
-                //         //     if(springContext.equals(null))
-                //     //         throw new Exception("SpringContext introuvable");
-                //         //     args[i] = springContext;
-                //         } else {
-                //             args[i] = null;
-                //         }
-                //     } else {
-                //         if (paramType.equals(String.class)) {
-                //             args[i] = value;
-                //         } else if (paramType.equals(int.class) || paramType.equals(Integer.class)) {
-                //             args[i] = Integer.parseInt(value);
-                //         } else if (paramType.equals(long.class) || paramType.equals(Long.class)) {
-                //             args[i] = Long.parseLong(value);
-                //         } else if (paramType.equals(double.class) || paramType.equals(Double.class)) {
-                //             args[i] = Double.parseDouble(value);
-                //         } else if (paramType.equals(boolean.class) || paramType.equals(Boolean.class)) {
-                //             args[i] = Boolean.parseBoolean(value);
-                //         } else {
-                //             args[i] = value;
-                //         }
-                //     }
-                // }
-
                 for (int i = 0; i < params.length; i++) {
-                    Parameter param = params[i];
-                    String paramName = param.getName();
-                    Class<?> paramType = param.getType();
 
-                    if (paramType.equals(Model.class)) {
+                    Parameter parameter = params[i];
+
+                    String paramName = parameter.getName();
+                    Class<?> paramType = parameter.getType();
+
+                    if (paramType == Fichier.class) {
+                        args[i] = construireFichier(req, paramName);
+                        continue;
+                    }
+
+                    if (paramType == Model.class) {
                         args[i] = model;
                         continue;
                     }
-                
-                    if (paramType.isArray() || !ParamBinder.isSimple(paramType)) {
-                        args[i] = ParamBinder.bind(req, paramName, paramType, true);
+
+                    if (paramType == HttpServletRequest.class) {
+                        args[i] = req;
                         continue;
                     }
 
-                    String value = req.getParameter(paramName);
+                    if (paramType == HttpServletResponse.class) {
+                        args[i] = resp;
+                        continue;
+                    }
 
-                    if (value == null || value.isEmpty()) {
+                    if (!paramType.isPrimitive()
+                            && paramType != String.class
+                            && !Number.class.isAssignableFrom(paramType)
+                            && paramType != Boolean.class
+                            && paramType != Character.class
+                            && !paramType.getName().startsWith("java.")) {
+
+                        args[i] = binder.bind(paramType, req);
+                        continue;
+                    }
+
+                    String valeur = req.getParameter(paramName);
+
+                    if (valeur == null || valeur.isEmpty()) {
+
                         if (paramType.isPrimitive()) {
-                            throw new IllegalArgumentException("Paramètre obligatoire manquant : " + paramName);
+                            throw new IllegalArgumentException(
+                                    "Paramètre obligatoire manquant : " + paramName
+                            );
                         }
+
                         args[i] = null;
+                        continue;
+                    }
+
+                    if (paramType == String.class) {
+                        args[i] = valeur;
+                    } else if (paramType == int.class || paramType == Integer.class) {
+                        args[i] = Integer.parseInt(valeur);
+                    } else if (paramType == long.class || paramType == Long.class) {
+                        args[i] = Long.parseLong(valeur);
+                    } else if (paramType == double.class || paramType == Double.class) {
+                        args[i] = Double.parseDouble(valeur);
+                    } else if (paramType == boolean.class || paramType == Boolean.class) {
+                        args[i] = Boolean.parseBoolean(valeur);
                     } else {
-                        args[i] = ParamBinder.convert(value, paramType);
+                        throw new IllegalArgumentException(
+                                "Type non pris en charge : " + paramType.getName()
+                        );
                     }
                 }
 
