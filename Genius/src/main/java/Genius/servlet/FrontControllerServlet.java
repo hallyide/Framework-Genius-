@@ -74,9 +74,6 @@ public class FrontControllerServlet extends HttpServlet {
         boolean lien = false;
         String urlCont = url.substring(req.getContextPath().length());
 
-        
-        String urlCont = url.substring(req.getContextPath().length());
-
         UrlMethod urlMethod1 = new UrlMethod(MethodeType.valueOf(req.getMethod()), urlCont);
 
         RouteMapping route = routes.get(urlMethod1);
@@ -110,9 +107,14 @@ public class FrontControllerServlet extends HttpServlet {
 
                     String paramName = parameter.getName();
                     Class<?> paramType = parameter.getType();
+                    
+                    if (paramType == GeniusSession.class) {
+                        args[i] = GeniusSession.from(req.getSession(true));
+                        continue;
+                    }
 
                     if (paramType == Fichier.class) {
-                        args[i] = construireFichier(req, paramName);
+                        args[i] = binder.construireFichier(req, paramName);
                         continue;
                     }
 
@@ -173,16 +175,16 @@ public class FrontControllerServlet extends HttpServlet {
                     }
                 }
 
-                if (route.getMethod().isAnnotationPresent(ApiREST.class)) {
+                if (mm.isAnnotationPresent(ApiREST.class)) {
                     Object result = new Object();
 
                     resp.setContentType("application/json;charset=UTF-8");
 
                     if (requestParams == null || requestParams.isEmpty()) {
-                        result = route.getMethod().invoke(obj);
+                        result = invokeController(mm, obj, args, req);
 
                     } else {
-                        result = mm.invoke(obj, args);
+                        result = invokeController(mm, obj, args, req);
                     }
 
                     PrintWriter r = resp.getWriter();
@@ -197,13 +199,13 @@ public class FrontControllerServlet extends HttpServlet {
                 if (returnType.equals(ModelAndView.class)) {
                     Object result;
 
-                    // if(this.util.haveParameter(route.getMethod(), WebApplicationContext.class)) {
+                    // if(this.util.haveParameter(mm, WebApplicationContext.class)) {
                     //     if(springContext == null) {
                     //         throw new Exception("SpringContext introuvable");
                     //     }
-                    //     result = route.getMethod().invoke(obj, springContext);
+                    //     result = mm.invoke(obj, springContext);
                     // } else {
-                    result = route.getMethod().invoke(obj,args);
+                    result = mm.invoke(obj,args);
 
                     // }
                     ModelAndView m = (ModelAndView) result;
@@ -215,10 +217,10 @@ public class FrontControllerServlet extends HttpServlet {
                     String lien1 = prefix + m.getURL() + suffix;
                     req.getRequestDispatcher(lien1).forward(req, resp);
 
-                } else if (returnType.equals(String.class) && !route.getMethod().isAnnotationPresent(ApiREST.class)) {
+                } else if (returnType.equals(String.class) && !mm.isAnnotationPresent(ApiREST.class)) {
                     Object result;
                     
-                    result = route.getMethod().invoke(obj, args);
+                    result = invokeController(mm, obj, args, req);
 
                     Map<String, Object> att = model.getAttribute();
                     if (att != null) {
@@ -231,7 +233,7 @@ public class FrontControllerServlet extends HttpServlet {
                     req.getRequestDispatcher(lien1).forward(req, resp);
                 } else if (!(requestParams == null) || !requestParams.isEmpty()) {
                     Object result;
-                    result = mm.invoke(obj, args);
+                    result = invokeController(mm, obj, args, req);
 
                 }
 
@@ -241,6 +243,28 @@ public class FrontControllerServlet extends HttpServlet {
 
             }
         }
+    }
+    
+    private Object invokeController(
+        Method method,
+        Object controller,
+        Object[] args,
+        HttpServletRequest req
+    ) throws Exception {
+
+        Object result = method.invoke(controller, args);
+
+        HttpSession httpSession = req.getSession(false);
+
+        if (httpSession != null) {
+            for (Object arg : args) {
+                if (arg instanceof GeniusSession) {
+                    ((GeniusSession) arg).flushTo(httpSession);
+                }
+            }
+        }
+
+        return result;
     }
 
     @Override
