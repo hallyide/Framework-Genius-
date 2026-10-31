@@ -87,16 +87,23 @@ public class FrontControllerServlet extends HttpServlet {
 
         if (route != null) {
             try {
-                Object obj;
+                // Object obj;
 
                 // if(springContext != null) {
                 //     obj = springContext.getBean(route.getControllerClass());
                 // }
                 // else{
-                obj = route.getControllerClass()
-                        .getDeclaredConstructor()
-                        .newInstance();
+                // obj = route.getControllerClass()
+                //         .getDeclaredConstructor()
+                //         .newInstance();
                 // }
+                Class<?> controllerClass = route.getControllerClass();
+
+                Object obj = util.getControllerInstance(
+                        req.getServletContext(),
+                        controllerClass
+                );
+
                 Class<?> returnType = route.getMethod().getReturnType();
 
                 Model model = new Model();
@@ -111,83 +118,17 @@ public class FrontControllerServlet extends HttpServlet {
                 }
 
                 Parameter[] params = mm.getParameters();
-                Object[] args = new Object[params.length];
+                
+                Object[] args = util.construireArguments(
+                        mm,
+                        req,
+                        resp,
+                        model
+                );
 
-                for (int i = 0; i < params.length; i++) {
-
-                    Parameter parameter = params[i];
-
-                    String paramName = parameter.getName();
-                    Class<?> paramType = parameter.getType();
-                    
-                    if (paramType == GeniusSession.class) {
-                        args[i] = GeniusSession.from(req.getSession(true));
-                        continue;
-                    }
-
-                    if (paramType == Fichier.class) {
-                        args[i] = binder.construireFichier(req, paramName);
-                        continue;
-                    }
-
-                    if (paramType == Model.class) {
-                        args[i] = model;
-                        continue;
-                    }
-
-                    if (paramType == HttpServletRequest.class) {
-                        args[i] = req;
-                        continue;
-                    }
-
-                    if (paramType == HttpServletResponse.class) {
-                        args[i] = resp;
-                        continue;
-                    }
-
-                    if (!paramType.isPrimitive()
-                            && paramType != String.class
-                            && !Number.class.isAssignableFrom(paramType)
-                            && paramType != Boolean.class
-                            && paramType != Character.class
-                            && !paramType.getName().startsWith("java.")) {
-
-                        args[i] = binder.bind(paramType, req);
-                        continue;
-                    }
-
-                    String valeur = req.getParameter(paramName);
-
-                    if (valeur == null || valeur.isEmpty()) {
-
-                        if (paramType.isPrimitive()) {
-                            throw new IllegalArgumentException(
-                                    "Paramètre obligatoire manquant : " + paramName
-                            );
-                        }
-
-                        args[i] = null;
-                        continue;
-                    }
-
-                    if (paramType == String.class) {
-                        args[i] = valeur;
-                    } else if (paramType == int.class || paramType == Integer.class) {
-                        args[i] = Integer.parseInt(valeur);
-                    } else if (paramType == long.class || paramType == Long.class) {
-                        args[i] = Long.parseLong(valeur);
-                    } else if (paramType == double.class || paramType == Double.class) {
-                        args[i] = Double.parseDouble(valeur);
-                    } else if (paramType == boolean.class || paramType == Boolean.class) {
-                        args[i] = Boolean.parseBoolean(valeur);
-                    } else {
-                        throw new IllegalArgumentException(
-                                "Type non pris en charge : " + paramType.getName()
-                        );
-                    }
-                }
-
-                Object result = invokeController(mm, obj, args, req);
+                
+                
+                Object result = util.invokeController(mm, obj, args, req);
 
                 if (mm.isAnnotationPresent(ApiREST.class)) {
 
@@ -230,28 +171,6 @@ public class FrontControllerServlet extends HttpServlet {
 
             }
         }
-    }
-    
-    private Object invokeController(
-        Method method,
-        Object controller,
-        Object[] args,
-        HttpServletRequest req
-    ) throws Exception {
-
-        Object result = method.invoke(controller, args);
-
-        HttpSession httpSession = req.getSession(false);
-
-        if (httpSession != null) {
-            for (Object arg : args) {
-                if (arg instanceof GeniusSession) {
-                    ((GeniusSession) arg).flushTo(httpSession);
-                }
-            }
-        }
-
-        return result;
     }
 
     @Override

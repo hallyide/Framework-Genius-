@@ -65,6 +65,25 @@ public class FrontControllerListener implements ServletContextListener {
             // }
 
             // context.setAttribute("springContext", springContext);
+            
+
+            // Création des instances des contrôleurs
+            Map<Class<?>, Object> controllersInstance = new HashMap<>();
+
+            for (Class<?> controllerClass : controllers) {
+
+                if (!controllersInstance.containsKey(controllerClass)) {
+
+                    Object instance = controllerClass
+                            .getDeclaredConstructor()
+                            .newInstance();
+
+                    controllersInstance.put(controllerClass, instance);
+                }
+            }
+
+            // Stocker les instances dans le ServletContext
+            context.setAttribute("controllersInstance", controllersInstance);
 
         } catch (Exception e) {
 
