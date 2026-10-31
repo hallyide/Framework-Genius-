@@ -377,4 +377,203 @@ public class Utilitaire {
         // Type non pris en charge
         return false;
     }
+
+    public boolean estObjetComplexe(Class<?> paramType) {
+
+        return !paramType.isPrimitive()
+                && paramType != String.class
+                && !Number.class.isAssignableFrom(paramType)
+                && paramType != Boolean.class
+                && paramType != Character.class
+                && !paramType.isEnum()
+                && !paramType.getName().startsWith("java.");
+    }
+
+    public Object convertirValeur(String valeur, Class<?> paramType) {
+
+        if (paramType == String.class) {
+            return valeur;
+        }
+
+        if (paramType == int.class || paramType == Integer.class) {
+            return Integer.parseInt(valeur);
+        }
+
+        if (paramType == long.class || paramType == Long.class) {
+            return Long.parseLong(valeur);
+        }
+
+        if (paramType == double.class || paramType == Double.class) {
+            return Double.parseDouble(valeur);
+        }
+
+        if (paramType == float.class || paramType == Float.class) {
+            return Float.parseFloat(valeur);
+        }
+
+        if (paramType == short.class || paramType == Short.class) {
+            return Short.parseShort(valeur);
+        }
+
+        if (paramType == byte.class || paramType == Byte.class) {
+            return Byte.parseByte(valeur);
+        }
+
+        if (paramType == boolean.class || paramType == Boolean.class) {
+            return Boolean.parseBoolean(valeur);
+        }
+
+        if (paramType == char.class || paramType == Character.class) {
+            if (valeur.length() != 1) {
+                throw new IllegalArgumentException(
+                        "Valeur invalide pour un caractère : " + valeur
+                );
+            }
+            return valeur.charAt(0);
+        }
+
+        // Gestion des Enum
+        if (paramType.isEnum()) {
+            return Enum.valueOf(
+                    (Class<? extends Enum>) paramType,
+                    valeur
+            );
+        }
+
+        throw new IllegalArgumentException(
+                "Type non pris en charge : " + paramType.getName()
+        );
+    }
+
+    public Object[] construireArguments(
+        Method method,
+        HttpServletRequest req,
+        HttpServletResponse resp,
+        Model model
+    ) throws Exception {
+
+        Parameter[] params = method.getParameters();
+        Object[] args = new Object[params.length];
+
+        ParamBinder binder = new ParamBinder();
+
+        for (int i = 0; i < params.length; i++) {
+
+            Parameter parameter = params[i];
+
+            String paramName = parameter.getName();
+            Class<?> paramType = parameter.getType();
+
+            // GeniusSession
+            if (paramType == GeniusSession.class) {
+                args[i] = GeniusSession.from(req.getSession(true));
+                continue;
+            }
+
+            // Fichier uploadé
+            if (paramType == Fichier.class) {
+                args[i] = binder.construireFichier(req, paramName);
+                continue;
+            }
+
+            // Model
+            if (paramType == Model.class) {
+                args[i] = model;
+                continue;
+            }
+
+            // HttpServletRequest
+            if (paramType == HttpServletRequest.class) {
+                args[i] = req;
+                continue;
+            }
+
+            // HttpServletResponse
+            if (paramType == HttpServletResponse.class) {
+                args[i] = resp;
+                continue;
+            }
+
+            // Objets complexes : Personne, Artiste, etc.
+            if (estObjetComplexe(paramType)) {
+                args[i] = binder.bind(paramType, req);
+                continue;
+            }
+
+            // Paramètres simples
+            String valeur = req.getParameter(paramName);
+
+            if (valeur == null || valeur.isEmpty()) {
+
+                if (paramType.isPrimitive()) {
+                    throw new IllegalArgumentException(
+                            "Paramètre obligatoire manquant : " + paramName
+                    );
+                }
+
+                args[i] = null;
+                continue;
+            }
+
+            args[i] = convertirValeur(valeur, paramType);
+        }
+
+        return args;
+    }
+
+    public Object invokeController(
+        Method method,
+        Object controller,
+        Object[] args,
+        HttpServletRequest req
+    ) throws Exception {
+
+        Object result = method.invoke(controller, args);
+
+        HttpSession httpSession = req.getSession(false);
+
+        if (httpSession != null) {
+
+            for (Object arg : args) {
+
+                if (arg instanceof GeniusSession) {
+                    ((GeniusSession) arg).flushTo(httpSession);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public Object getControllerInstance(
+        ServletContext context,
+        Class<?> controllerClass
+    ) throws Exception {
+
+        Map<Class<?>, Object> controllerList =
+                (Map<Class<?>, Object>) context.getAttribute("controllersInstance");
+
+        if (controllerList == null) {
+            throw new IllegalStateException(
+                    "La liste des instances de contrôleurs est introuvable."
+            );
+        }
+
+        // 1. Vérifier si le contrôleur existe déjà
+        Object instance = controllerList.get(controllerClass);
+
+        if (instance != null) {
+            return instance;
+        }
+
+        // 2. Créer une nouvelle instance
+        instance = controllerClass.getDeclaredConstructor().newInstance();
+
+        // 3. Ajouter l'instance dans la HashMap
+        controllerList.put(controllerClass, instance);
+
+        // 4. Retourner l'instance
+        return instance;
+    }
+
 }
