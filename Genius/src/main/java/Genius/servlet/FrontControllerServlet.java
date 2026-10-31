@@ -25,6 +25,9 @@ import java.lang.reflect.Parameter;
 
 import Genius.listener.FrontControllerListener;
 
+import java.util.Collection;
+import java.lang.reflect.Array;
+
 public class FrontControllerServlet extends HttpServlet {
 
     private Map<UrlMethod, RouteMapping> routes = new HashMap<>();
@@ -101,7 +104,9 @@ public class FrontControllerServlet extends HttpServlet {
                 Method mm = route.getMethod();
 
                 // Vérification de l'authentification avant l'exécution
-                if (!checkAuthorization(req, resp, mm)) {
+                if (!util.checkAuthorization(req, resp, mm, 
+                (String) getServletContext().getAttribute(FrontControllerListener.SESSION_USER_NAME), 
+                (String) getServletContext().getAttribute(FrontControllerListener.SESSION_ROLE_NAME))) {
                     return;
                 }
 
@@ -265,112 +270,6 @@ public class FrontControllerServlet extends HttpServlet {
 
         resp.setContentType("text/html;charset=UTF-8");
         processRequest(req, resp);
-    }
-    
-    private void handleUnauthorized(
-            HttpServletRequest req,
-            HttpServletResponse resp,
-            boolean json
-    ) throws IOException {
-
-        resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-
-        if (json) {
-            resp.setContentType("application/json;charset=UTF-8");
-
-            PrintWriter out = resp.getWriter();
-
-            out.print("{\"status\":401,\"error\":\"Unauthorized\","
-                    + "\"message\":\"Authentification requise.\"}");
-
-        } else {
-            resp.setContentType("text/html;charset=UTF-8");
-
-            PrintWriter out = resp.getWriter();
-
-            out.print(
-                "<!DOCTYPE html>"
-                + "<html>"
-                + "<head><meta charset='UTF-8'><title>401 Unauthorized</title></head>"
-                + "<body>"
-                + "<h1>401 - Accès non autorisé</h1>"
-                + "<p>Vous devez être connecté pour accéder à cette page.</p>"
-                + "</body>"
-                + "</html>"
-            );
-        }
-    }
-    
-    private boolean isJsonRequest(
-        HttpServletRequest req,
-        Method method
-    ) {
-
-        // Une méthode annotée ApiREST attend une réponse JSON
-        if (method.isAnnotationPresent(ApiREST.class)) {
-            return true;
-        }
-
-        // Vérifier le type de réponse accepté par le client
-        String accept = req.getHeader("Accept");
-
-        if (accept != null && accept.contains("application/json")) {
-            return true;
-        }
-
-        // Vérifier les requêtes AJAX
-        String requestedWith = req.getHeader("X-Requested-With");
-
-        return "XMLHttpRequest".equalsIgnoreCase(requestedWith);
-    }
-
-    private boolean checkAuthorization(
-            HttpServletRequest req,
-            HttpServletResponse resp,
-            Method method
-    ) throws IOException {
-
-        // 1. Récupérer l'annotation Auth
-        Auth auth = method.getAnnotation(Auth.class);
-
-        // 2. Si elle n'existe pas sur la méthode,
-        //    vérifier l'annotation sur la classe
-        if (auth == null) {
-            auth = method.getDeclaringClass().getAnnotation(Auth.class);
-        }
-
-        // 3. Aucune annotation : accès autorisé
-        if (auth == null) {
-            return true;
-        }
-
-        // 4. Récupérer le nom de l'attribut utilisateur
-        String sessionUserName = (String) getServletContext()
-                .getAttribute(FrontControllerListener.SESSION_USER_NAME);
-
-        if (sessionUserName == null || sessionUserName.trim().isEmpty()) {
-            sessionUserName = "user";
-        }
-
-        // 5. Récupérer la session sans en créer une nouvelle
-        HttpSession session = req.getSession(false);
-
-        // 6. Vérifier l'existence de la session
-        if (session == null) {
-            handleUnauthorized(req, resp, isJsonRequest(req, method));
-            return false;
-        }
-
-        // 7. Vérifier l'existence de l'utilisateur connecté
-        Object user = session.getAttribute(sessionUserName);
-
-        if (user == null) {
-            handleUnauthorized(req, resp, isJsonRequest(req, method));
-            return false;
-        }
-
-        // 8. Utilisateur authentifié
-        return true;
     }
     
 }
