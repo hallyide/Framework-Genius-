@@ -19,6 +19,7 @@ public class FrontControllerListener implements ServletContextListener {
     // public static final String SPRING_ROOT =
     //         WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE;
     public static final String SESSION_USER_NAME = "SESSION_USER_NAME";
+    public static final String SESSION_ROLE_NAME = "SESSION_ROLE_NAME";
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
@@ -34,7 +35,16 @@ public class FrontControllerListener implements ServletContextListener {
             }
 
             context.setAttribute(SESSION_USER_NAME, sessionUserName);
-            
+
+
+            String sessionRoleName = context.getInitParameter("session-role-name");
+
+            if (sessionRoleName == null || sessionRoleName.trim().isEmpty()) {
+                sessionRoleName = "roles";
+            }
+
+            context.setAttribute(SESSION_ROLE_NAME, sessionRoleName);
+
 
             Utilitaire util = new Utilitaire();
 
